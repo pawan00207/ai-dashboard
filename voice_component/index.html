@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/streamlit-component-lib@2.0.0/dist/streamlit-component-lib.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: transparent; font-family: 'JetBrains Mono', 'Inter', monospace; }
+
+        .voice-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 0;
+        }
+
+        .mic-btn {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            border: 1.5px solid #27272A;
+            background: #18181B;
+            color: #71717A;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .mic-btn:hover {
+            border-color: #E63946;
+            color: #E63946;
+            box-shadow: 0 0 15px #E6394630;
+        }
+
+        .mic-btn.listening {
+            background: #E6394618;
+            border-color: #E63946;
+            color: #E63946;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 #E6394640; }
+            50%      { box-shadow: 0 0 0 10px #E6394600; }
+        }
+
+        .status-text {
+            font-size: 0.72rem;
+            color: #71717A;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 220px;
+        }
+        .status-text.active  { color: #E63946; }
+        .status-text.success { color: #4ade80; }
+        .status-text.error   { color: #F4A261; }
+    </style>
+</head>
+<body>
+    <div class="voice-container">
+        <button class="mic-btn" id="mic-btn" onclick="toggleListening()" title="Click to speak">🎤</button>
+        <span class="status-text" id="status"></span>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+
+        function sendValue(value) {
+            Streamlit.setComponentValue(value);
+        }
+
+        function onRender(event) {
+            Streamlit.setFrameHeight(52);
+        }
+
+        Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, onRender);
+        Streamlit.setComponentReady();
+
+        function toggleListening() {
+            if (isListening) {
+                recognition.stop();
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                const st = document.getElementById('status');
+                st.textContent = '⚠ Browser does not support speech recognition';
+                st.className = 'status-text error';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = function () {
+                isListening = true;
+                document.getElementById('mic-btn').classList.add('listening');
+                const st = document.getElementById('status');
+                st.textContent = '● Listening…';
+                st.className = 'status-text active';
+            };
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                sendValue(transcript);
+                const st = document.getElementById('status');
+                st.textContent = '✓ ' + transcript;
+                st.className = 'status-text success';
+            };
+
+            recognition.onend = function () {
+                isListening = false;
+                document.getElementById('mic-btn').classList.remove('listening');
+            };
+
+            recognition.onerror = function (event) {
+                isListening = false;
+                document.getElementById('mic-btn').classList.remove('listening');
+                const st = document.getElementById('status');
+                st.textContent = '⚠ ' + event.error;
+                st.className = 'status-text error';
+            };
+
+            recognition.start();
+        }
+    </script>
+</body>
+</html>
